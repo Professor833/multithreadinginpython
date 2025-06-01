@@ -1,38 +1,42 @@
 import json
+from threading import Thread, Lock
 import urllib.request
 import time
-from threading import Thread, Lock
 
 finished_count = 0
 
 
-def count_letters(url, frequency, mutex):
+def count_letters(url, frequency, lock: Lock):
     response = urllib.request.urlopen(url)
     txt = str(response.read())
-    mutex.acquire()
-    for l in txt:
-        letter = l.lower()
+    lock.acquire()
+    for letter in txt:
+        letter = letter.lower()
         if letter in frequency:
             frequency[letter] += 1
     global finished_count
     finished_count += 1
-    mutex.release()
+    lock.release()
 
 
 def main():
     frequency = {}
-    mutex = Lock()
+    lock = Lock()
     for c in "abcdefghijklmnopqrstuvwxyz":
         frequency[c] = 0
     start = time.time()
     for i in range(1000, 1020):
-        Thread(target=count_letters, args=(f"https://www.rfc-editor.org/rfc/rfc{i}.txt", frequency, mutex)).start()
+        Thread(
+            target=count_letters,
+            args=(f"https://www.rfc-editor.org/rfc/rfc{i}.txt", frequency, lock),
+        ).start()
     while True:
-        mutex.acquire()
+        lock.acquire()
         if finished_count == 20:
+            lock.release()
             break
-        mutex.release()
-        time.sleep(0.5)
+        lock.release()
+        time.sleep(0.05)
     end = time.time()
     print(json.dumps(frequency, indent=4))
     print("Done, time taken", end - start)

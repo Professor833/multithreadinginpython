@@ -6,8 +6,8 @@ import time
 def count_letters(url, frequency):
     response = urllib.request.urlopen(url)
     txt = str(response.read())
-    for l in txt:
-        letter = l.lower()
+    for letter in txt:
+        letter = letter.lower()
         if letter in frequency:
             frequency[letter] += 1
 
