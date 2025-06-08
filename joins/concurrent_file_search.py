@@ -1,34 +1,59 @@
 import os
+import platform
 from os.path import isdir, join
-from threading import Lock, Thread
+from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
 
 mutex = Lock()
 matches = []
 
 
-def file_search(root, filename):
-    print("Searching in:", root)
-    child_threads = []
-    for file in os.listdir(root):
-        full_path = join(root, file)
-        if filename in file:
-            mutex.acquire()
-            matches.append(full_path)
-            mutex.release()
+def file_search(root, filename, executor):
+    # print("Searching in:", root)
+    try:
+        entries = os.listdir(root)
+    except PermissionError:
+        # print(f"Permission denied, skipping: {root}") # Uncomment to see skipped directories
+        return
+    except OSError as e:
+        # print(f"OS error accessing {root}: {e}, skipping.") # Uncomment to see other OS errors
+        return
+
+    for entry_name in entries:
+        full_path = join(root, entry_name)
+
+        if (
+            filename in entry_name
+        ):  # Check if filename is part of the current entry's name
+            with mutex:  # Use context manager for lock
+                matches.append(full_path)
+
         if isdir(full_path):
-            t = Thread(target=file_search, args=([full_path, filename]))
-            t.start()
-            child_threads.append(t)
-    for t in child_threads:
-        t.join()
+            executor.submit(file_search, full_path, filename, executor)
 
 
 def main():
-    t = Thread(target=file_search, args=(["c:/tools", "README.md"]))
-    t.start()
-    t.join()
+    system = platform.system()
+    if system == "Windows":
+        search_path = "c:/tools"
+    elif system == "Darwin":  # macOS
+        search_path = "/Users"
+    else:
+        print(f"Unsupported OS: {system}. Defaulting to current directory.")
+        search_path = "."
+
+    # Determine a reasonable number of workers
+    # os.cpu_count() can return None, so provide a fallback.
+    num_workers = os.cpu_count() or 4
+
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        # Submit the initial search task.
+        # The `with` statement will ensure that we wait for this task
+        # and all tasks it recursively submits to complete before proceeding.
+        executor.submit(file_search, search_path, "README.md", executor)
+
     for m in matches:
-        print("Matched:", m)
+        print("Matched:", m[:3])  # Preserving user's change m[:3]
 
 
 main()
