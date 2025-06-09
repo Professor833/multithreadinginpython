@@ -13,10 +13,10 @@ def file_search(root, filename, executor):
     try:
         entries = os.listdir(root)
     except PermissionError:
-        # print(f"Permission denied, skipping: {root}") # Uncomment to see skipped directories
+        print(f"Permission denied, skipping: {root}")
         return
     except OSError as e:
-        # print(f"OS error accessing {root}: {e}, skipping.") # Uncomment to see other OS errors
+        print(f"OS error accessing {root}: {e}, skipping.")
         return
 
     for entry_name in entries:
@@ -53,7 +53,7 @@ def main():
         executor.submit(file_search, search_path, "README.md", executor)
 
     for m in matches:
-        print("Matched:", m[:3])  # Preserving user's change m[:3]
+        print("Matched:", m)
 
 
 main()
